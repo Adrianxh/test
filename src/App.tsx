@@ -1103,6 +1103,11 @@ function ExportView({ state }: { state: AppState }) {
     URL.revokeObjectURL(url);
   };
 
+  const handleDownloadProject = async () => {
+    const { downloadProjectZip } = await import('./downloadUtils');
+    await downloadProjectZip();
+  };
+
   return (
     <div className="space-y-6 animate-slide-in">
       <div className="glass-panel rounded-xl p-6">
@@ -1127,9 +1132,12 @@ function ExportView({ state }: { state: AppState }) {
           </div>
         </div>
 
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <button onClick={handleDownloadProject} className="px-5 py-2.5 rounded-lg text-sm text-white flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 border border-purple-400/30 hover:shadow-lg hover:shadow-purple-500/20 transition-all">
+            <Download size={16} /> ⬇ Download Complete Project (ZIP)
+          </button>
           <button onClick={() => handleExport('astra')} className="btn-primary px-5 py-2.5 rounded-lg text-sm text-white flex items-center gap-2">
-            <Download size={16} /> Export for Astra 6
+            <Download size={16} /> Export Research Data
           </button>
           <button onClick={() => handleExport('csv')} className="btn-secondary px-5 py-2.5 rounded-lg text-sm text-slate-300 flex items-center gap-2">
             <Download size={16} /> Export CSV
