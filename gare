@@ -1,151 +1,1690 @@
-<?php
-/**
- * GeneratePress child theme functions and definitions.
- *
- * Add your custom PHP in this file.
- * Only edit this file if you have direct access to it on your server (to fix errors if they happen).
- */
+--- style.css (原始)
+/*
+ Theme Name:   GeneratePress Child
+ Theme URI:    https://generatepress.com
+ Description:  Default GeneratePress child theme
+ Author:       Tom Usborne
+ Author URI:   https://tomusborne.com
+ Template:     generatepress
+ Version:      0.4.1
+*/
 
+/* ======================================================================
+   1. POST CONTENT STYLES
+   ====================================================================== */
 
-
-
-
-/* NOOTROHOLIC — CONCEPT 06 RESEARCH DRAWERS v1.0
- * Append inside your existing child-theme functions.php PHP block.
- * Do not replace your existing functions.php or add another <?php tag.
- */
-if ( ! function_exists( 'nh_rd06_enabled' ) ) {
-    function nh_rd06_enabled() {
-        return ! is_admin() && ! is_feed() && ! is_front_page()
-            && ! post_password_required()
-            && ( is_singular( 'post' ) || is_page( 'best-peptide-vendors' ) );
-    }
-
-    add_filter( 'body_class', function ( $classes ) {
-        if ( nh_rd06_enabled() ) { $classes[] = 'nh-rd-enabled'; }
-        return $classes;
-    } );
-
-    // Replace the theme's sidebar on these articles with the new left drawers.
-    add_filter( 'generate_sidebar_layout', function ( $layout ) {
-        return nh_rd06_enabled() ? 'no-sidebar' : $layout;
-    }, 99 );
-
-    function nh_rd06_icon( $name ) {
-        $paths = array(
-            'finder' => '<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5M8 10.5h5m-2.5-2.5v5"/>',
-            'vendors' => '<path d="M9 3h6m-5 0v6l-5.5 9a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3M7.5 15h9"/>',
-            'calculator' => '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 10h1m6 0h1M8 14h1m6 0h1M8 18h1m6 0h1"/>',
-            'shield' => '<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="M12 8v5m0 3h.01"/>',
-        );
-        return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">'
-            . ( isset( $paths[ $name ] ) ? $paths[ $name ] : '' ) . '</svg>';
-    }
-
-    function nh_rd06_open() {
-        if ( ! nh_rd06_enabled() || ! in_the_loop() || ! is_main_query()
-            || get_the_ID() !== get_queried_object_id() || ! empty( $GLOBALS['nh_rd06_open'] ) ) {
-            return;
-        }
-        $GLOBALS['nh_rd06_open'] = true;
-        $GLOBALS['nh_rd06_rendered'] = true;
-        $current_slug = get_post_field( 'post_name', get_queried_object_id() );
-        $tools = array(
-            array( 'peptide-finder', 'Peptide finder', 'finder' ),
-            array( 'best-peptide-vendors', 'Best vendors', 'vendors' ),
-            array( 'peptide-reconstitution-calculator', 'Calculator', 'calculator' ),
-            array( 'peptide-scams-to-avoid', 'Peptide scam alerts', 'shield' ),
-        );
-        echo '<div class="nh-rd-layout"><aside class="nh-rd-sidebar" aria-label="Article navigation and research tools">';
-        // Contents are progressively enhanced. Tools work without JavaScript.
-        echo '<details class="nh-rd-drawer nh-rd-toc" hidden><summary>Article contents</summary>';
-        echo '<nav class="nh-rd-links" aria-label="Article contents"><ol class="nh-rd-toc-list"></ol></nav></details>';
-        echo '<details class="nh-rd-drawer" open><summary>Research tools</summary><nav class="nh-rd-links" aria-label="Research tools">';
-        foreach ( $tools as $tool ) {
-            // Server-side omission, including query-string/trailing-slash variants.
-            if ( 'best-peptide-vendors' === $tool[0] && 'best-peptide-vendors' === $current_slug ) {
-                continue;
-            }
-            echo '<a href="' . esc_url( home_url( '/' . $tool[0] . '/' ) ) . '">'
-                . nh_rd06_icon( $tool[2] ) . '<span>' . esc_html( $tool[1] ) . '</span></a>';
-        }
-        echo '</nav></details>';
-        echo '<details class="nh-rd-drawer"><summary>Related guides</summary><nav class="nh-rd-links" aria-label="Related research guides">';
-        $guides = array(
-            'peptide-vendor-review-methodology' => 'How we review vendors',
-            'list-of-peptides' => 'Peptide reference guide',
-        );
-        foreach ( $guides as $slug => $label ) {
-            if ( $slug === $current_slug ) { continue; }
-            echo '<a href="' . esc_url( home_url( '/' . $slug . '/' ) ) . '">' . esc_html( $label ) . '</a>';
-        }
-        echo '</nav></details></aside>';
-    }
-    // GP places this hook after the existing entry header and featured image.
-    add_action( 'generate_after_entry_header', 'nh_rd06_open', 999 );
-
-    add_action( 'generate_after_entry_content', function () {
-        if ( ! empty( $GLOBALS['nh_rd06_open'] ) && get_the_ID() === get_queried_object_id() ) {
-            echo '</div><!-- .nh-rd-layout -->';
-            $GLOBALS['nh_rd06_open'] = false;
-        }
-    }, 0 );
-
-    add_action( 'wp_footer', function () {
-        if ( empty( $GLOBALS['nh_rd06_rendered'] ) ) { return; }
-        ?>
-        <script id="nh-rd06-script">
-        (() => {
-            'use strict';
-            function init() {
-                const layout = document.querySelector('.nh-rd-layout');
-                if (!layout || layout.dataset.nhReady) return;
-                const content = layout.querySelector(':scope > .entry-content');
-                const drawer = layout.querySelector('.nh-rd-toc');
-                const list = drawer && drawer.querySelector('.nh-rd-toc-list');
-                if (!content || !list) return;
-                layout.dataset.nhReady = '1';
-                if (window.matchMedia('(max-width: 1023px)').matches) {
-                    layout.querySelectorAll('.nh-rd-drawer').forEach(item => { item.open = false; });
-                }
-                const excluded = 'nav,aside,template,[hidden],[aria-hidden="true"],.ez-toc-container,#ez-toc-container,.lwptoc,.rank-math-toc-block,.wp-block-rank-math-toc-block,[data-nh-rd-toc-exclude]';
-                const headings = Array.from(content.querySelectorAll('h2,h3')).filter(h => h.textContent.trim() && !h.closest(excluded));
-                if (!headings.length) return;
-                const fragment = document.createDocumentFragment();
-                const links = [];
-                headings.forEach((heading, index) => {
-                    if (!heading.id) {
-                        const base = 'nh-section-' + (index + 1);
-                        let id = base;
-                        let suffix = 1;
-                        while (document.getElementById(id)) id = base + '-' + suffix++;
-                        heading.id = id;
-                    }
-                    const li = document.createElement('li');
-                    if (heading.tagName === 'H3') li.className = 'nh-rd-subheading';
-                    const link = document.createElement('a');
-                    link.href = '#' + encodeURIComponent(heading.id);
-                    link.textContent = heading.textContent.trim();
-                    li.appendChild(link);
-                    fragment.appendChild(li);
-                    links.push(link);
-                });
-                list.appendChild(fragment);
-                drawer.hidden = false;
-                function markCurrent() {
-                    links.forEach(link => {
-                        if (link.hash === window.location.hash && window.location.hash) link.setAttribute('aria-current', 'location');
-                        else link.removeAttribute('aria-current');
-                    });
-                }
-                window.addEventListener('hashchange', markCurrent);
-                markCurrent();
-            }
-            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
-            else init();
-        })();
-        </script>
-        <?php
-    }, 30 );
+body.single-post .entry-content {
+  --nh-g: #ddeb9d;
+  --nh-h: #4a245e;
+  --nh-l: #04c;
+  --nh-n: #213448;
+  --nh-i: #263544;
+  --nh-m: #596775;
+  --nh-d: #e2e8ed;
+  --nh-s: #f5f8fa;
+  --nh-r: 14px;
+  overflow-wrap: break-word;
 }
 
+.single-post .entry-content :where(p,ul,ol,dl) {
+  margin-block: 0 1.4em;
+}
+
+.single-post .entry-content :where(ul,ol) {
+  padding-inline-start: 1.4em;
+  margin-inline-start: 0;
+}
+
+.single-post .entry-content li {
+  padding-inline-start: .25em;
+  margin-block: .5em;
+}
+
+.single-post .entry-content li::marker {
+  color: var(--nh-n);
+}
+
+.single-post .entry-content li>:where(ul,ol) {
+  margin-block: .5em;
+}
+
+.single-post .entry-content h2 {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 2.2em 0 .8em;
+  padding: 0 0 .3em;
+  border: 0;
+  border-bottom: 4px solid var(--nh-g);
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content h3 {
+  margin: 1.8em 0 .65em;
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content h4 {
+  margin: 1.6em 0 .6em;
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content>:first-child {
+  margin-block-start: 0;
+}
+
+.single-post .entry-content :where(p,li,dt,dd,td,th,figcaption,blockquote) a:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg)) {
+  color: var(--nh-l);
+  border-bottom: 0;
+  padding-bottom: 0;
+  text-decoration-line: underline;
+  text-decoration-color: rgba(0,68,204,.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  text-decoration-skip-ink: auto;
+  transition: color .18s ease,text-decoration-color .18s ease;
+}
+
+.single-post .entry-content :where(p,li,dt,dd,td,th,figcaption,blockquote) a:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg)):hover {
+  color: var(--nh-h);
+  text-decoration-color: currentColor;
+}
+
+.single-post .entry-content a[rel~=sponsored]:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg))::after {
+  content: "↗";
+  display: inline-block;
+  margin-inline-start: .18em;
+  color: currentColor;
+}
+
+.single-post .entry-content a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.single-post .entry-content table {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 2rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--nh-d);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--nh-r);
+  background: #fff;
+  box-shadow: 0 12px 30px -18px rgba(25,47,69,.28),0 2px 6px rgba(25,47,69,.035);
+  scrollbar-width: thin;
+  scrollbar-color: #a8b8c6 #edf2f5;
+}
+
+.single-post .entry-content .wp-block-table {
+  max-width: 100%;
+  margin: 2rem 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #a8b8c6 #edf2f5;
+}
+
+.single-post .entry-content .wp-block-table table {
+  display: table;
+  margin: 0;
+}
+
+.single-post .entry-content .wp-block-table table.has-fixed-layout {
+  table-layout: auto;
+}
+
+.single-post .entry-content table th {
+  box-sizing: border-box;
+  min-width: 145px;
+  padding: 19px 22px;
+  border: 0;
+  border-bottom: 3px solid var(--nh-g);
+  background: var(--nh-n);
+  background-image: linear-gradient(135deg,rgba(255,255,255,.055),transparent 70%);
+  color: #fff;
+  text-align: start;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.single-post .entry-content table thead {
+  border: 0;
+}
+
+.single-post .entry-content table th+th {
+  border-inline-start: 1px solid rgba(255,255,255,.12);
+}
+
+.single-post .entry-content table th a:not(.button,.btn-primary,.wp-block-button__link) {
+  color: inherit;
+  text-decoration-color: rgba(255,255,255,.6);
+}
+
+.single-post .entry-content table th a:not(.button,.btn-primary,.wp-block-button__link):hover {
+  color: var(--nh-g);
+  text-decoration-color: currentColor;
+}
+
+.single-post .entry-content table td {
+  box-sizing: border-box;
+  min-width: 145px;
+  padding: 18px 22px;
+  border: 0;
+  border-bottom: 1px solid var(--nh-d);
+  background: #fff;
+  color: var(--nh-i);
+  text-align: start;
+  vertical-align: top;
+  transition: background-color .18s ease;
+}
+
+.single-post .entry-content table td+td {
+  border-inline-start: 1px solid #edf1f4;
+}
+
+.single-post .entry-content table tbody tr:nth-child(even)>td {
+  background: #f7f9fb;
+}
+
+.single-post .entry-content table tbody tr>td:first-child {
+  min-width: 155px;
+  color: var(--nh-n);
+}
+
+.single-post .entry-content table tbody th[scope=row] {
+  border-bottom: 1px solid var(--nh-d);
+  background: #eef3f6;
+  color: var(--nh-n);
+  vertical-align: top;
+}
+
+.single-post .entry-content table tbody:last-child tr:last-child>:is(td,th[scope=row]) {
+  border-bottom: 0;
+}
+
+.single-post .entry-content table :is(td,th)>:last-child {
+  margin-bottom: 0;
+}
+
+.single-post .entry-content table :is(td,th) :where(p,ul,ol) {
+  margin-bottom: .7em;
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .single-post .entry-content table tbody tr:hover>td {
+    background: #eef4f8;
+  }
+}
+
+.single-post .entry-content table tbody tr:focus-within>td {
+  background: #eef4f8;
+}
+
+.single-post .entry-content table caption {
+  padding: 0 2px 12px;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+.single-post .entry-content .wp-block-table>figcaption {
+  margin-top: 12px;
+  padding-inline: 2px;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+.single-post .entry-content table tfoot td {
+  background: #edf3f6;
+  color: var(--nh-n);
+  border-bottom: 0;
+}
+
+.single-post .entry-content blockquote {
+  position: relative;
+  margin: 2rem 0;
+  padding: 24px 28px;
+  border: 1px solid var(--nh-d);
+  border-inline-start: 4px solid var(--nh-g);
+  border-radius: 0 var(--nh-r) var(--nh-r) 0;
+  background: var(--nh-s);
+  color: var(--nh-n);
+}
+
+.single-post .entry-content blockquote p:last-of-type {
+  margin-bottom: 0;
+}
+
+.single-post .entry-content blockquote cite {
+  display: block;
+  margin-top: 14px;
+  color: var(--nh-m);
+}
+
+/* WordPress/Gutenberg image spacing.
+   Keep image styling native; restore consistent space ABOVE and BELOW
+   image blocks so captions/text never sit flush under an image.
+   IMPORTANT: figure margins must NOT be collapsed away by :last-child
+   resets, so this rule is placed after them and keeps both sides. */
+.single-post .entry-content figure.wp-block-image {
+  margin-block: 2.2rem;
+}
+
+/* Fallback for non-Gutenberg images wrapped in <p> (classic/media images):
+   give the paragraph that contains only an image the same breathing room. */
+.single-post .entry-content p:has(>img:only-child) {
+  margin-block: 2.2rem;
+}
+
+/* If a caption exists inside the figure, keep a small gap between the
+   image and its own caption but preserve the outer bottom margin. */
+.single-post .entry-content figure.wp-block-image>figcaption {
+  margin-block: .6em 0;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+@media (max-width:768px) {
+  .single-post .entry-content h2 {
+    margin-top: 1.8em;
+    border-bottom-width: 3px;
+  }
+
+  .single-post .entry-content figure.wp-block-image {
+    margin-block: 1.6rem;
+  }
+
+  .single-post .entry-content p:has(>img:only-child) {
+    margin-block: 1.6rem;
+  }
+
+  .single-post .entry-content table {
+    border-radius: 12px;
+  }
+
+  .single-post .entry-content table :is(th,td) {
+    min-width: 145px;
+    padding: 15px 16px;
+  }
+
+  .single-post .entry-content blockquote {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .single-post .entry-content :is(a,td) {
+    transition: none;
+  }
+}
+
+/* ======================================================================
+   2. NAVBAR — LAB PRECISION (white bar).
+   GeneratePress controls which header is active and when menus open.
+   These rules style the normal, sticky and mobile variants WITHOUT
+   overriding their visibility. Default mobile breakpoint: 768px.
+   Check in DevTools: html --nh-navbar-build should be LAB08-R5-20260922.
+   ====================================================================== */
+
+:root {
+  --nh-navbar-build: LAB08-R5-20260922;
+  --nh-lab-navy: #213448;
+  --nh-lab-lime: #ddeb9d;
+  --nh-lab-white: #fbfdff;
+  --nh-lab-edge: #dce6ed;
+  --nh-lab-muted: #526878;
+  /* Turns a white logo navy. If your logo is already dark, set to: none */
+  --nh-lab-logo-filter: brightness(0) saturate(100%) invert(17%) sepia(24%) saturate(871%) hue-rotate(165deg) brightness(92%) contrast(91%);
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 8px clamp(10px, 1.6vw, 22px);
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+/* Sticky state: no extra stage padding, so the bar stays slim over content. */
+body :is(#site-navigation, #sticky-navigation).is_stuck,
+body :is(#site-navigation, #sticky-navigation).navigation-stick {
+  padding-block: 6px;
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: clamp(8px, 1.0vw, 17px);
+  width: 100%;
+  max-width: 1360px;
+  min-height: 75px;
+  margin: 0 auto;
+  padding: 0 clamp(14px, 1.8vw, 26px);
+  border: 1px solid var(--nh-lab-edge);
+  border-radius: 11px;
+  background: var(--nh-lab-white) !important;
+  background-image: linear-gradient(110deg, #fff 0%, #f8fbfd 78%, #eaf2f7 100%) !important;
+  box-shadow: 0 7px 23px rgba(33,52,72,.085), 0 1px 3px rgba(33,52,72,.035) !important;
+  overflow: visible;
+}
+
+/* Kill any legacy pseudo-element graphics from the old navbar. */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::after {
+  content: none !important;
+  display: none !important;
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 0 auto;
+  width: clamp(90px, 14vw, 190px);
+  border-radius: 0 10px 10px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='105' viewBox='0 0 150 105'%3E%3Cg fill='none' stroke='%2394acbc' stroke-opacity='.37' stroke-width='1'%3E%3Cpath d='M15 5l18 10v20L15 45-3 35V15zM51 5l18 10v20L51 45 33 35V15zM87 5l18 10v20L87 45 69 35V15zM123 5l18 10v20l-18 10-18-10V15zM33 35l18 10v20L33 75 15 65V45zM69 35l18 10v20L69 75 51 65V45zM105 35l18 10v20l-18 10-18-10V45zM141 35l18 10v20l-18 10-18-10V45zM15 65l18 10v20l-18 10-18-10V75zM51 65l18 10v20l-18 10-18-10V75zM87 65l18 10v20l-18 10-18-10V75zM123 65l18 10v20l-18 10-18-10V75z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center right -15px;
+  opacity: .50;
+  mask-image: linear-gradient(to right, transparent, #000 58%);
+  pointer-events: none;
+}
+
+/* Brand */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  padding: 0 clamp(13px, 1.4vw, 22px) 0 0;
+  border-right: 1px solid #dbe3e9;
+  background: transparent !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding::before,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding::after {
+  content: none !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .site-logo {
+  margin: 0;
+  min-width: 0;
+  flex-shrink: 1;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding img,
+body #mobile-header .mobile-header-logo img {
+  box-sizing: border-box;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(220px, 20vw);
+  max-height: 52px;
+  padding: 0;
+  object-fit: contain;
+  filter: var(--nh-lab-logo-filter);
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .main-title {margin: 0; min-width: 0;}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .main-title a {
+  display: block;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+/* Menu */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav {
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-inline-start: auto;
+}
+/* Do not force display:flex on the mobile menu: GP needs to hide/reveal it. */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul {
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: clamp(0px, .25vw, 5px);
+}
+@media (min-width: 769px) {
+  body :is(#site-navigation, #sticky-navigation) .main-nav > ul {
+    display: flex;
+  }
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 47px;
+  padding: 0 clamp(7px, .7vw, 12px);
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--nh-lab-navy) !important;
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: color .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a::after {
+  content: "";
+  position: absolute;
+  inset-inline: clamp(7px, .7vw, 12px);
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: #a2c868;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li:is(:hover, .sfHover, :focus-within, .current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a {
+  color: var(--nh-lab-navy) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li:is(:hover, .sfHover, :focus-within, .current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a::after {opacity: 1;}
+
+/* Search + toggle */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-items {
+  z-index: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  margin: 0;
+  padding-inline-start: 11px;
+  border-left: 1px solid #d9e2e9;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a {
+  display: inline-flex;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle {
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0 !important;
+  border-radius: 6px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background-color .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a:hover,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle:hover { background: #eaf1f5 !important; }
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle .gp-icon svg,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item .gp-icon svg {fill: currentColor;}
+
+/* Submenus */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul {
+  box-sizing: border-box;
+  width: 245px;
+  padding: 7px;
+  border: 1px solid #d8e3ea;
+  border-radius: 10px;
+  background: #fff !important;
+  box-shadow: 0 20px 38px rgba(33,52,72,.14);
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul li a {
+  padding: 12px 13px;
+  border: 0 !important;
+  border-radius: 5px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  background-image: none !important;
+  overflow-wrap: anywhere;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul li:is(:hover, .sfHover, :focus-within) > a {background: #edf4f7 !important;}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .dropdown-menu-toggle {padding-inline: 8px 0;}
+
+/* Wide desktop strapline */
+@media (min-width: 1500px) {
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation {padding-inline-end: 120px;}
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation::after {
+    content: "DATA\A DRIVES\A CLARITY" !important;
+    display: block !important;
+    white-space: pre;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 75px;
+    padding-left: 10px;
+    border-left: 1px solid #c7d7e1;
+    color: #637989;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    line-height: 1.65;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 1499px) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {display: none;}
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1130px) {
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation {
+    flex-wrap: wrap;
+    gap: 0 9px;
+    padding: 7px 16px 11px;
+  }
+  body :is(#site-navigation, #sticky-navigation) .navigation-branding {min-height: 58px;}
+  body :is(#site-navigation, #sticky-navigation) .navigation-branding img {max-width: 210px;max-height: 46px;}
+  body :is(#site-navigation, #sticky-navigation) .main-nav {
+    order: 5;
+    flex: 1 0 100%;
+    width: 100%;
+    margin: 0;
+    padding-top: 5px;
+    border-top: 1px solid #e1e8ee;
+  }
+  body :is(#site-navigation, #sticky-navigation) .main-nav > ul {justify-content: center; flex-wrap: wrap;}
+  body :is(#site-navigation, #sticky-navigation) .menu-bar-items {margin-inline-start: auto;}
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) {padding: 6px 7px 8px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation {
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 0 3px;
+    padding: 0 7px 0 11px;
+    border-radius: 9px;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {opacity: .19; width: 70px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 auto 0 0;
+    padding-inline-end: 7px;
+    border-right: 0;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding img,
+  body #mobile-header .mobile-header-logo img {max-width: min(180px, 42vw); max-height: 40px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-items {gap: 0; padding: 0; border: 0; margin-inline-start: auto;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header).toggled .main-nav {
+    order: 5;
+    flex: 1 0 100%;
+    width: 100%;
+    margin: 0;
+    padding: 7px 6px 10px;
+    border-top: 1px solid #e2e9ef;
+  }
+  /* GP manages .toggled, menu visibility and the hamburger state natively. */
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a {
+    justify-content: flex-start;
+    margin-block: 1px;
+    padding: 11px 12px;
+    white-space: normal;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a::after {inset-inline: 12px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul {width: 100%; box-shadow: none;}
+  body #mobile-header .mobile-header-logo {margin-inline-end: auto;min-width: 0;}
+
+  /* No :has(#mobile-header) hiding hack: GP hides its default header
+     only when Mobile Header is actually enabled in the Customizer. */
+}
+
+/* Slideout menu */
+body #generate-slideout-menu {background: #f8fbfd !important;}
+body #generate-slideout-menu .main-nav > ul > li > a {
+  position: relative;
+  margin: 4px 11px;
+  padding: 14px 16px;
+  border: 0 !important;
+  border-radius: 5px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+body #generate-slideout-menu .main-nav > ul > li:is(:hover, .sfHover, :focus-within) > a {background: #ecf3f7 !important;}
+body #generate-slideout-menu .main-nav > ul > li:is(.current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body #generate-slideout-menu .main-nav > ul > li:is(.current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a::after {
+  content: "";
+  position: absolute;
+  inset-inline: 16px;
+  bottom: 5px;
+  height: 2px;
+  background: #a2c868;
+  pointer-events: none;
+}
+body #generate-slideout-menu .slideout-exit {min-width: 44px;min-height: 44px;color:var(--nh-lab-navy) !important;}
+
+/* Accessibility + anchor offset */
+body :is(#site-navigation, #sticky-navigation, #mobile-header, #generate-slideout-menu) :is(a, button):focus-visible {
+  outline: 2px solid var(--nh-lab-navy);
+  outline-offset: 3px;
+}
+html {scroll-padding-top: 105px;}
+@media (min-width: 769px) and (max-width: 1130px) {
+  html {scroll-padding-top: 175px;}
+  .single-post .entry-content :is(h2, h3, h4) {scroll-margin-top: 175px;}
+}
+@media (max-width: 768px) {
+  html {scroll-padding-top: 100px;}
+  .single-post .entry-content :is(h2, h3, h4) {scroll-margin-top: 100px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header, #generate-slideout-menu) :is(a, button) {transition: none !important;}
+}
+
+
+/* Concept 06: Research drawers. Article/header typography stays with WordPress. */
+body.nh-rd-enabled .nh-rd-layout {
+  --nh-rd-ink: #213448;
+  --nh-rd-muted: #596775;
+  --nh-rd-edge: #dce6ed;
+  --nh-rd-surface: #f7f9fa;
+  --nh-rd-accent: #ddeb9d;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(24px, 3vw, 40px);
+  margin-block-start: 2em;
+}
+body.nh-rd-enabled .nh-rd-layout > .entry-content {
+  min-width: 0;
+  margin-block-start: 0;
+  grid-column: 2;
+  grid-row: 1;
+}
+body.nh-rd-enabled .nh-rd-sidebar {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--nh-rd-ink);
+  font-family: inherit;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+body.nh-rd-enabled .nh-rd-sidebar *,
+body.nh-rd-enabled .nh-rd-sidebar *::before,
+body.nh-rd-enabled .nh-rd-sidebar *::after { box-sizing: border-box; }
+body.nh-rd-enabled .nh-rd-sidebar [hidden] { display: none !important; }
+body.nh-rd-enabled .nh-rd-drawer {
+  margin: 0 0 14px;
+  border: 1px solid var(--nh-rd-edge);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(33,52,72,.025);
+}
+body.nh-rd-enabled .nh-rd-drawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 15px;
+  border-radius: 8px;
+  background: var(--nh-rd-surface);
+  color: var(--nh-rd-ink);
+  font: inherit;
+  font-weight: 650;
+  list-style: none;
+  cursor: pointer;
+}
+body.nh-rd-enabled .nh-rd-drawer > summary::-webkit-details-marker { display: none; }
+body.nh-rd-enabled .nh-rd-drawer > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  flex: 0 0 7px;
+  margin: -3px 2px 0 0;
+}
+body.nh-rd-enabled .nh-rd-drawer[open] > summary {
+  border-bottom: 1px solid var(--nh-rd-edge);
+  border-radius: 8px 8px 0 0;
+}
+body.nh-rd-enabled .nh-rd-drawer[open] > summary::after { transform: rotate(225deg); margin-top: 3px; }
+body.nh-rd-enabled .nh-rd-links { padding: 8px 10px 12px; }
+body.nh-rd-enabled .nh-rd-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nh-rd-muted);
+  font: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+body.nh-rd-enabled .nh-rd-sidebar a:hover,
+body.nh-rd-enabled .nh-rd-sidebar a:focus-visible {
+  color: var(--nh-rd-ink);
+  background: #f1f5f7;
+}
+body.nh-rd-enabled .nh-rd-sidebar :is(a,summary):focus-visible {
+  outline: 2px solid var(--nh-rd-ink);
+  outline-offset: 2px;
+}
+body.nh-rd-enabled .nh-rd-sidebar svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body.nh-rd-enabled .nh-rd-sidebar a[aria-current="location"] {
+  background: #f4f7ea;
+  color: var(--nh-rd-ink);
+  box-shadow: inset 3px 0 var(--nh-rd-accent);
+}
+body.nh-rd-enabled .nh-rd-toc-list,
+body.nh-rd-enabled .nh-rd-toc-list li { list-style: none; margin: 0; padding: 0; }
+body.nh-rd-enabled .nh-rd-toc-list li.nh-rd-subheading { padding-inline-start: 12px; }
+body.nh-rd-enabled .nh-rd-toc-list .nh-rd-subheading a { font-size: .94em; }
+@media (max-width: 1023px) {
+  body.nh-rd-enabled .nh-rd-layout { display: flex; flex-direction: column; gap: 20px; }
+  body.nh-rd-enabled .nh-rd-layout > .entry-content { width: 100%; }
+  body.nh-rd-enabled .nh-rd-sidebar { width: 100%; }
+}
+
+
++++ style.css (修改后)
+/*
+ Theme Name:   GeneratePress Child
+ Theme URI:    https://generatepress.com
+ Description:  Default GeneratePress child theme
+ Author:       Tom Usborne
+ Author URI:   https://tomusborne.com
+ Template:     generatepress
+ Version:      0.4.1
+*/
+
+/* ======================================================================
+   1. POST CONTENT STYLES
+   ====================================================================== */
+
+body.single-post .entry-content {
+  --nh-g: #ddeb9d;
+  --nh-h: #4a245e;
+  --nh-l: #04c;
+  --nh-n: #213448;
+  --nh-i: #263544;
+  --nh-m: #596775;
+  --nh-d: #e2e8ed;
+  --nh-s: #f5f8fa;
+  --nh-r: 14px;
+  overflow-wrap: break-word;
+}
+
+.single-post .entry-content :where(p,ul,ol,dl) {
+  margin-block: 0 1.4em;
+}
+
+.single-post .entry-content :where(ul,ol) {
+  padding-inline-start: 1.4em;
+  margin-inline-start: 0;
+}
+
+.single-post .entry-content li {
+  padding-inline-start: .25em;
+  margin-block: .5em;
+}
+
+.single-post .entry-content li::marker {
+  color: var(--nh-n);
+}
+
+.single-post .entry-content li>:where(ul,ol) {
+  margin-block: .5em;
+}
+
+.single-post .entry-content h2 {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 2.2em 0 .8em;
+  padding: 0 0 .3em;
+  border: 0;
+  border-bottom: 4px solid var(--nh-g);
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content h3 {
+  margin: 1.8em 0 .65em;
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content h4 {
+  margin: 1.6em 0 .6em;
+  scroll-margin-top: 130px;
+}
+
+.single-post .entry-content>:first-child {
+  margin-block-start: 0;
+}
+
+.single-post .entry-content :where(p,li,dt,dd,td,th,figcaption,blockquote) a:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg)) {
+  color: var(--nh-l);
+  border-bottom: 0;
+  padding-bottom: 0;
+  text-decoration-line: underline;
+  text-decoration-color: rgba(0,68,204,.4);
+  text-decoration-thickness: 1px;
+  text-underline-offset: .2em;
+  text-decoration-skip-ink: auto;
+  transition: color .18s ease,text-decoration-color .18s ease;
+}
+
+.single-post .entry-content :where(p,li,dt,dd,td,th,figcaption,blockquote) a:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg)):hover {
+  color: var(--nh-h);
+  text-decoration-color: currentColor;
+}
+
+.single-post .entry-content a[rel~=sponsored]:not(.btn-primary,.button,.wp-element-button,.wp-block-button__link,[role=button]):not(:has(img,picture,svg))::after {
+  content: "↗";
+  display: inline-block;
+  margin-inline-start: .18em;
+  color: currentColor;
+}
+
+.single-post .entry-content a:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+.single-post .entry-content table {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  margin: 2rem 0;
+  overflow-x: auto;
+  border: 1px solid var(--nh-d);
+  border-collapse: separate;
+  border-spacing: 0;
+  border-radius: var(--nh-r);
+  background: #fff;
+  box-shadow: 0 12px 30px -18px rgba(25,47,69,.28),0 2px 6px rgba(25,47,69,.035);
+  scrollbar-width: thin;
+  scrollbar-color: #a8b8c6 #edf2f5;
+}
+
+.single-post .entry-content .wp-block-table {
+  max-width: 100%;
+  margin: 2rem 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #a8b8c6 #edf2f5;
+}
+
+.single-post .entry-content .wp-block-table table {
+  display: table;
+  margin: 0;
+}
+
+.single-post .entry-content .wp-block-table table.has-fixed-layout {
+  table-layout: auto;
+}
+
+.single-post .entry-content table th {
+  box-sizing: border-box;
+  min-width: 145px;
+  padding: 19px 22px;
+  border: 0;
+  border-bottom: 3px solid var(--nh-g);
+  background: var(--nh-n);
+  background-image: linear-gradient(135deg,rgba(255,255,255,.055),transparent 70%);
+  color: #fff;
+  text-align: start;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.single-post .entry-content table thead {
+  border: 0;
+}
+
+.single-post .entry-content table th+th {
+  border-inline-start: 1px solid rgba(255,255,255,.12);
+}
+
+.single-post .entry-content table th a:not(.button,.btn-primary,.wp-block-button__link) {
+  color: inherit;
+  text-decoration-color: rgba(255,255,255,.6);
+}
+
+.single-post .entry-content table th a:not(.button,.btn-primary,.wp-block-button__link):hover {
+  color: var(--nh-g);
+  text-decoration-color: currentColor;
+}
+
+.single-post .entry-content table td {
+  box-sizing: border-box;
+  min-width: 145px;
+  padding: 18px 22px;
+  border: 0;
+  border-bottom: 1px solid var(--nh-d);
+  background: #fff;
+  color: var(--nh-i);
+  text-align: start;
+  vertical-align: top;
+  transition: background-color .18s ease;
+}
+
+.single-post .entry-content table td+td {
+  border-inline-start: 1px solid #edf1f4;
+}
+
+.single-post .entry-content table tbody tr:nth-child(even)>td {
+  background: #f7f9fb;
+}
+
+.single-post .entry-content table tbody tr>td:first-child {
+  min-width: 155px;
+  color: var(--nh-n);
+}
+
+.single-post .entry-content table tbody th[scope=row] {
+  border-bottom: 1px solid var(--nh-d);
+  background: #eef3f6;
+  color: var(--nh-n);
+  vertical-align: top;
+}
+
+.single-post .entry-content table tbody:last-child tr:last-child>:is(td,th[scope=row]) {
+  border-bottom: 0;
+}
+
+.single-post .entry-content table :is(td,th)>:last-child {
+  margin-bottom: 0;
+}
+
+.single-post .entry-content table :is(td,th) :where(p,ul,ol) {
+  margin-bottom: .7em;
+}
+
+@media (hover:hover) and (pointer:fine) {
+  .single-post .entry-content table tbody tr:hover>td {
+    background: #eef4f8;
+  }
+}
+
+.single-post .entry-content table tbody tr:focus-within>td {
+  background: #eef4f8;
+}
+
+.single-post .entry-content table caption {
+  padding: 0 2px 12px;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+.single-post .entry-content .wp-block-table>figcaption {
+  margin-top: 12px;
+  padding-inline: 2px;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+.single-post .entry-content table tfoot td {
+  background: #edf3f6;
+  color: var(--nh-n);
+  border-bottom: 0;
+}
+
+.single-post .entry-content blockquote {
+  position: relative;
+  margin: 2rem 0;
+  padding: 24px 28px;
+  border: 1px solid var(--nh-d);
+  border-inline-start: 4px solid var(--nh-g);
+  border-radius: 0 var(--nh-r) var(--nh-r) 0;
+  background: var(--nh-s);
+  color: var(--nh-n);
+}
+
+.single-post .entry-content blockquote p:last-of-type {
+  margin-bottom: 0;
+}
+
+.single-post .entry-content blockquote cite {
+  display: block;
+  margin-top: 14px;
+  color: var(--nh-m);
+}
+
+/* WordPress/Gutenberg image spacing.
+   Keep image styling native; restore consistent space ABOVE and BELOW
+   image blocks so captions/text never sit flush under an image.
+   IMPORTANT: figure margins must NOT be collapsed away by :last-child
+   resets, so this rule is placed after them and keeps both sides. */
+.single-post .entry-content figure.wp-block-image {
+  margin-block: 2.2rem;
+}
+
+/* Fallback for non-Gutenberg images wrapped in <p> (classic/media images):
+   give the paragraph that contains only an image the same breathing room. */
+.single-post .entry-content p:has(>img:only-child) {
+  margin-block: 2.2rem;
+}
+
+/* If a caption exists inside the figure, keep a small gap between the
+   image and its own caption but preserve the outer bottom margin. */
+.single-post .entry-content figure.wp-block-image>figcaption {
+  margin-block: .6em 0;
+  color: var(--nh-m);
+  text-align: start;
+}
+
+@media (max-width:768px) {
+  .single-post .entry-content h2 {
+    margin-top: 1.8em;
+    border-bottom-width: 3px;
+  }
+
+  .single-post .entry-content figure.wp-block-image {
+    margin-block: 1.6rem;
+  }
+
+  .single-post .entry-content p:has(>img:only-child) {
+    margin-block: 1.6rem;
+  }
+
+  .single-post .entry-content table {
+    border-radius: 12px;
+  }
+
+  .single-post .entry-content table :is(th,td) {
+    min-width: 145px;
+    padding: 15px 16px;
+  }
+
+  .single-post .entry-content blockquote {
+    padding: 20px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  .single-post .entry-content :is(a,td) {
+    transition: none;
+  }
+}
+
+/* ======================================================================
+   2. NAVBAR — LAB PRECISION (white bar).
+   GeneratePress controls which header is active and when menus open.
+   These rules style the normal, sticky and mobile variants WITHOUT
+   overriding their visibility. Default mobile breakpoint: 768px.
+   Check in DevTools: html --nh-navbar-build should be LAB08-R5-20260922.
+   ====================================================================== */
+
+:root {
+  --nh-navbar-build: LAB08-R5-20260922;
+  --nh-lab-navy: #213448;
+  --nh-lab-lime: #ddeb9d;
+  --nh-lab-white: #fbfdff;
+  --nh-lab-edge: #dce6ed;
+  --nh-lab-muted: #526878;
+  /* Turns a white logo navy. If your logo is already dark, set to: none */
+  --nh-lab-logo-filter: brightness(0) saturate(100%) invert(17%) sepia(24%) saturate(871%) hue-rotate(165deg) brightness(92%) contrast(91%);
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 8px clamp(10px, 1.6vw, 22px);
+  border: 0;
+  border-radius: 0;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  overflow: visible;
+}
+
+/* Sticky state: no extra stage padding, so the bar stays slim over content. */
+body :is(#site-navigation, #sticky-navigation).is_stuck,
+body :is(#site-navigation, #sticky-navigation).navigation-stick {
+  padding-block: 6px;
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: clamp(8px, 1.0vw, 17px);
+  width: 100%;
+  max-width: 1360px;
+  min-height: 75px;
+  margin: 0 auto;
+  padding: 0 clamp(14px, 1.8vw, 26px);
+  border: 1px solid var(--nh-lab-edge);
+  border-radius: 11px;
+  background: var(--nh-lab-white) !important;
+  background-image: linear-gradient(110deg, #fff 0%, #f8fbfd 78%, #eaf2f7 100%) !important;
+  box-shadow: 0 7px 23px rgba(33,52,72,.085), 0 1px 3px rgba(33,52,72,.035) !important;
+  overflow: visible;
+}
+
+/* Kill any legacy pseudo-element graphics from the old navbar. */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::after {
+  content: none !important;
+  display: none !important;
+}
+
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0 0 0 auto;
+  width: clamp(90px, 14vw, 190px);
+  border-radius: 0 10px 10px 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='150' height='105' viewBox='0 0 150 105'%3E%3Cg fill='none' stroke='%2394acbc' stroke-opacity='.37' stroke-width='1'%3E%3Cpath d='M15 5l18 10v20L15 45-3 35V15zM51 5l18 10v20L51 45 33 35V15zM87 5l18 10v20L87 45 69 35V15zM123 5l18 10v20l-18 10-18-10V15zM33 35l18 10v20L33 75 15 65V45zM69 35l18 10v20L69 75 51 65V45zM105 35l18 10v20l-18 10-18-10V45zM141 35l18 10v20l-18 10-18-10V45zM15 65l18 10v20l-18 10-18-10V75zM51 65l18 10v20l-18 10-18-10V75zM87 65l18 10v20l-18 10-18-10V75zM123 65l18 10v20l-18 10-18-10V75z'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center right -15px;
+  opacity: .50;
+  mask-image: linear-gradient(to right, transparent, #000 58%);
+  pointer-events: none;
+}
+
+/* Brand */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex: 0 1 auto;
+  gap: 8px;
+  min-width: 0;
+  margin: 0 auto 0 0;
+  padding: 0 clamp(13px, 1.4vw, 22px) 0 0;
+  border-right: 1px solid #dbe3e9;
+  background: transparent !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding::before,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding::after {
+  content: none !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .site-logo {
+  margin: 0;
+  min-width: 0;
+  flex-shrink: 1;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding img,
+body #mobile-header .mobile-header-logo img {
+  box-sizing: border-box;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(220px, 20vw);
+  max-height: 52px;
+  padding: 0;
+  object-fit: contain;
+  filter: var(--nh-lab-logo-filter);
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .main-title {margin: 0; min-width: 0;}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding .main-title a {
+  display: block;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+/* Menu */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav {
+  position: relative;
+  z-index: 1;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin-inline-start: auto;
+}
+/* Do not force display:flex on the mobile menu: GP needs to hide/reveal it. */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul {
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: clamp(0px, .25vw, 5px);
+}
+@media (min-width: 769px) {
+  body :is(#site-navigation, #sticky-navigation) .main-nav > ul {
+    display: flex;
+  }
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 47px;
+  padding: 0 clamp(7px, .7vw, 12px);
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  color: var(--nh-lab-navy) !important;
+  text-decoration: none !important;
+  white-space: nowrap;
+  transition: color .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a::after {
+  content: "";
+  position: absolute;
+  inset-inline: clamp(7px, .7vw, 12px);
+  bottom: 4px;
+  height: 2px;
+  border-radius: 2px;
+  background: #a2c868;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li:is(:hover, .sfHover, :focus-within, .current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a {
+  color: var(--nh-lab-navy) !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li:is(:hover, .sfHover, :focus-within, .current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a::after {opacity: 1;}
+
+/* Search + toggle */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-items {
+  z-index: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 2px;
+  margin: 0;
+  padding-inline-start: 11px;
+  border-left: 1px solid #d9e2e9;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a {
+  display: inline-flex;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle {
+  box-sizing: border-box;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0 !important;
+  border-radius: 6px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background-color .18s ease;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item > a:hover,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle:hover { background: #eaf1f5 !important; }
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle .gp-icon svg,
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-item .gp-icon svg {fill: currentColor;}
+
+/* Submenus */
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul {
+  box-sizing: border-box;
+  width: 245px;
+  padding: 7px;
+  border: 1px solid #d8e3ea;
+  border-radius: 10px;
+  background: #fff !important;
+  box-shadow: 0 20px 38px rgba(33,52,72,.14);
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul li a {
+  padding: 12px 13px;
+  border: 0 !important;
+  border-radius: 5px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  background-image: none !important;
+  overflow-wrap: anywhere;
+}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul li:is(:hover, .sfHover, :focus-within) > a {background: #edf4f7 !important;}
+body :is(#site-navigation, #sticky-navigation, #mobile-header) .dropdown-menu-toggle {padding-inline: 8px 0;}
+
+/* Wide desktop strapline */
+@media (min-width: 1500px) {
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation {padding-inline-end: 120px;}
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation::after {
+    content: "DATA\A DRIVES\A CLARITY" !important;
+    display: block !important;
+    white-space: pre;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 75px;
+    padding-left: 10px;
+    border-left: 1px solid #c7d7e1;
+    color: #637989;
+    font-size: 8px;
+    font-weight: 700;
+    letter-spacing: .16em;
+    line-height: 1.65;
+    pointer-events: none;
+  }
+}
+
+@media (max-width: 1499px) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {display: none;}
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1130px) {
+  body :is(#site-navigation, #sticky-navigation) .inside-navigation {
+    flex-wrap: wrap;
+    gap: 0 9px;
+    padding: 7px 16px 11px;
+  }
+  body :is(#site-navigation, #sticky-navigation) .navigation-branding {min-height: 58px;}
+  body :is(#site-navigation, #sticky-navigation) .navigation-branding img {max-width: 210px;max-height: 46px;}
+  body :is(#site-navigation, #sticky-navigation) .main-nav {
+    order: 5;
+    flex: 1 0 100%;
+    width: 100%;
+    margin: 0;
+    padding-top: 5px;
+    border-top: 1px solid #e1e8ee;
+  }
+  body :is(#site-navigation, #sticky-navigation) .main-nav > ul {justify-content: center; flex-wrap: wrap;}
+  body :is(#site-navigation, #sticky-navigation) .menu-bar-items {margin-inline-start: auto;}
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) {padding: 6px 7px 8px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation {
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 0 3px;
+    padding: 0 7px 0 11px;
+    border-radius: 9px;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .inside-navigation::before {opacity: .19; width: 70px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0 auto 0 0;
+    padding-inline-end: 7px;
+    border-right: 0;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .navigation-branding img,
+  body #mobile-header .mobile-header-logo img {max-width: min(180px, 42vw); max-height: 40px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-bar-items {gap: 0; padding: 0; border: 0; margin-inline-start: auto;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .menu-toggle {
+    flex-shrink: 0;
+    margin: 0;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header).toggled .main-nav {
+    order: 5;
+    flex: 1 0 100%;
+    width: 100%;
+    margin: 0;
+    padding: 7px 6px 10px;
+    border-top: 1px solid #e2e9ef;
+  }
+  /* GP manages .toggled, menu visibility and the hamburger state natively. */
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a {
+    justify-content: flex-start;
+    margin-block: 1px;
+    padding: 11px 12px;
+    white-space: normal;
+  }
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav > ul > li > a::after {inset-inline: 12px;}
+  body :is(#site-navigation, #sticky-navigation, #mobile-header) .main-nav ul ul {width: 100%; box-shadow: none;}
+  body #mobile-header .mobile-header-logo {margin-inline-end: auto;min-width: 0;}
+
+  /* No :has(#mobile-header) hiding hack: GP hides its default header
+     only when Mobile Header is actually enabled in the Customizer. */
+}
+
+/* Slideout menu */
+body #generate-slideout-menu {background: #f8fbfd !important;}
+body #generate-slideout-menu .main-nav > ul > li > a {
+  position: relative;
+  margin: 4px 11px;
+  padding: 14px 16px;
+  border: 0 !important;
+  border-radius: 5px;
+  color: var(--nh-lab-navy) !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+body #generate-slideout-menu .main-nav > ul > li:is(:hover, .sfHover, :focus-within) > a {background: #ecf3f7 !important;}
+body #generate-slideout-menu .main-nav > ul > li:is(.current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+body #generate-slideout-menu .main-nav > ul > li:is(.current-menu-item, .current-menu-ancestor, .current-menu-parent, .current_page_item, .current_page_parent, .current_page_ancestor) > a::after {
+  content: "";
+  position: absolute;
+  inset-inline: 16px;
+  bottom: 5px;
+  height: 2px;
+  background: #a2c868;
+  pointer-events: none;
+}
+body #generate-slideout-menu .slideout-exit {min-width: 44px;min-height: 44px;color:var(--nh-lab-navy) !important;}
+
+/* Accessibility + anchor offset */
+body :is(#site-navigation, #sticky-navigation, #mobile-header, #generate-slideout-menu) :is(a, button):focus-visible {
+  outline: 2px solid var(--nh-lab-navy);
+  outline-offset: 3px;
+}
+html {scroll-padding-top: 105px;}
+@media (min-width: 769px) and (max-width: 1130px) {
+  html {scroll-padding-top: 175px;}
+  .single-post .entry-content :is(h2, h3, h4) {scroll-margin-top: 175px;}
+}
+@media (max-width: 768px) {
+  html {scroll-padding-top: 100px;}
+  .single-post .entry-content :is(h2, h3, h4) {scroll-margin-top: 100px;}
+}
+@media (prefers-reduced-motion: reduce) {
+  body :is(#site-navigation, #sticky-navigation, #mobile-header, #generate-slideout-menu) :is(a, button) {transition: none !important;}
+}
+
+
+/* Concept 06: Research drawers. Article/header typography stays with WordPress. */
+body.nh-rd-enabled .nh-rd-layout {
+  --nh-rd-ink: #213448;
+  --nh-rd-muted: #596775;
+  --nh-rd-edge: #dce6ed;
+  --nh-rd-surface: #f7f9fa;
+  --nh-rd-accent: #ddeb9d;
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  align-items: start;
+  gap: clamp(24px, 3vw, 40px);
+  margin-block-start: 2em;
+}
+body.nh-rd-enabled .nh-rd-layout > .entry-content {
+  min-width: 0;
+  margin-block-start: 0;
+  grid-column: 2;
+  grid-row: 1;
+}
+body.nh-rd-enabled .nh-rd-sidebar {
+  min-width: 0;
+  grid-column: 1;
+  grid-row: 1;
+  color: var(--nh-rd-ink);
+  font-family: inherit;
+  font-size: .875rem;
+  line-height: 1.5;
+}
+body.nh-rd-enabled .nh-rd-sidebar *,
+body.nh-rd-enabled .nh-rd-sidebar *::before,
+body.nh-rd-enabled .nh-rd-sidebar *::after { box-sizing: border-box; }
+body.nh-rd-enabled .nh-rd-sidebar [hidden] { display: none !important; }
+body.nh-rd-enabled .nh-rd-drawer {
+  margin: 0 0 14px;
+  border: 1px solid var(--nh-rd-edge);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 4px 14px rgba(33,52,72,.025);
+}
+body.nh-rd-enabled .nh-rd-drawer > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 50px;
+  padding: 15px;
+  border-radius: 8px;
+  background: var(--nh-rd-surface);
+  color: var(--nh-rd-ink);
+  font: inherit;
+  font-weight: 650;
+  list-style: none;
+  cursor: pointer;
+}
+body.nh-rd-enabled .nh-rd-drawer > summary::-webkit-details-marker { display: none; }
+body.nh-rd-enabled .nh-rd-drawer > summary::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  flex: 0 0 7px;
+  margin: -3px 2px 0 0;
+}
+body.nh-rd-enabled .nh-rd-drawer[open] > summary {
+  border-bottom: 1px solid var(--nh-rd-edge);
+  border-radius: 8px 8px 0 0;
+}
+body.nh-rd-enabled .nh-rd-drawer[open] > summary::after { transform: rotate(225deg); margin-top: 3px; }
+body.nh-rd-enabled .nh-rd-links { padding: 8px 10px 12px; }
+body.nh-rd-enabled .nh-rd-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--nh-rd-muted);
+  font: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+body.nh-rd-enabled .nh-rd-sidebar a:hover,
+body.nh-rd-enabled .nh-rd-sidebar a:focus-visible {
+  color: var(--nh-rd-ink);
+  background: #f1f5f7;
+}
+body.nh-rd-enabled .nh-rd-sidebar :is(a,summary):focus-visible {
+  outline: 2px solid var(--nh-rd-ink);
+  outline-offset: 2px;
+}
+body.nh-rd-enabled .nh-rd-sidebar svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+body.nh-rd-enabled .nh-rd-sidebar a[aria-current="location"] {
+  background: #f4f7ea;
+  color: var(--nh-rd-ink);
+  box-shadow: inset 3px 0 var(--nh-rd-accent);
+}
+body.nh-rd-enabled .nh-rd-toc-list,
+body.nh-rd-enabled .nh-rd-toc-list li { list-style: none; margin: 0; padding: 0; }
+body.nh-rd-enabled .nh-rd-toc-list li.nh-rd-subheading { padding-inline-start: 12px; }
+body.nh-rd-enabled .nh-rd-toc-list .nh-rd-subheading a { font-size: .94em; }
+@media (max-width: 1023px) {
+  body.nh-rd-enabled .nh-rd-layout { display: flex; flex-direction: column; gap: 20px; }
+  body.nh-rd-enabled .nh-rd-layout > .entry-content { width: 100%; }
+  body.nh-rd-enabled .nh-rd-sidebar { width: 100%; }
+}
+
+/* ======================================================================
+   DIAGNOSTIC: is the nh-rd markup actually being injected?
+   These rules are temporary helpers to tell "missing PHP/JS output"
+   apart from "CSS not loading". Remove once the sidebar renders.
+   - Red chip shows when body has .nh-rd-enabled but NO .nh-rd-sidebar
+     exists in the DOM -> the injector (functions.php / JS) is missing.
+   - Dashed placeholder shows when .nh-rd-sidebar exists but is empty
+     -> the drawer/TOC generator did not populate it.
+   ====================================================================== */
+body.nh-rd-enabled:not(:has(.nh-rd-sidebar)) .site::before {
+  content: "\26A0 Research Drawers active (body.nh-rd-enabled), but no .nh-rd-sidebar found in the page. The markup-injection code (PHP/JS) is missing or not running.";
+  display: block;
+  padding: 12px 16px;
+  background: #b3261e;
+  color: #fff;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+body.nh-rd-enabled .nh-rd-sidebar:empty {
+  min-height: 120px;
+  border: 2px dashed #b3261e;
+}
+
+body.nh-rd-enabled .nh-rd-sidebar:empty::before {
+  content: "Sidebar element exists but is empty \2014 check the drawer/TOC generator.";
+  display: block;
+  padding: 12px;
+  color: #b3261e;
+  font-size: 13px;
+}
