@@ -1,0 +1,150 @@
+/* NOOTROHOLIC — CONCEPT 06 RESEARCH DRAWERS v1.2 — sidebar styles
+ * Position the research-drawer sidebar to the RIGHT of the article content.
+ *
+ * As of v1.2 of the PHP, the <aside class="nh-rd-sidebar"> is emitted AFTER
+ * the entry content in the DOM (output-buffer reorder in functions.php),
+ * so it lands on the right naturally. The `order` rules below are kept as a
+ * safety net: they force the same result even if an older copy of the PHP
+ * (sidebar first in the DOM) is still deployed.
+ */
+
+.nh-rd-layout {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 2rem;
+}
+
+/* Sidebar = right column (DOM order puts it first, so force it second). */
+.nh-rd-layout > .nh-rd-sidebar {
+    order: 2;
+    flex: 0 0 300px;
+    width: 300px;
+    max-width: 300px;
+    position: sticky;
+    top: 2rem;
+}
+
+/* Article = left/main column. */
+.nh-rd-layout > .entry-content,
+.nh-rd-layout > .inside-article,
+.nh-rd-layout > .wp-block-post-content {
+    order: 1;
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+/* Safety net: if the markup ever outputs the aside AFTER the content,
+   swap the orders so the sidebar still renders on the right. */
+@supports selector(:has(*)) {
+    .nh-rd-layout:has(> .entry-content + .nh-rd-sidebar) > .nh-rd-sidebar { order: 2; }
+    .nh-rd-layout:has(> .entry-content + .nh-rd-sidebar) > .entry-content { order: 1; }
+}
+
+@media (max-width: 1023px) {
+    .nh-rd-layout {
+        flex-direction: column;
+    }
+    .nh-rd-layout > .nh-rd-sidebar {
+        order: 2; /* stacked below the article content on mobile */
+        position: static;
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+    }
+}
+
+/* ============================================================
+ * Drawer appearance (details/summary cards in the right sidebar)
+ * ============================================================ */
+.nh-rd-sidebar {
+    font-size: 0.9rem;
+}
+
+.nh-rd-drawer {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+}
+
+.nh-rd-drawer > summary {
+    cursor: pointer;
+    padding: 0.75rem 1rem;
+    font-weight: 700;
+    list-style: none;            /* hide default triangle */
+    position: relative;
+    user-select: none;
+}
+
+.nh-rd-drawer > summary::-webkit-details-marker { display: none; }
+
+.nh-rd-drawer > summary::after {
+    content: "";
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: translateY(-70%) rotate(45deg);
+    transition: transform 0.2s ease;
+}
+
+.nh-rd-drawer[open] > summary::after {
+    transform: translateY(-30%) rotate(-135deg);
+}
+
+.nh-rd-links {
+    padding: 0 1rem 0.75rem;
+}
+
+.nh-rd-links a {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    text-decoration: none;
+}
+
+.nh-rd-links a:hover,
+.nh-rd-links a:focus {
+    text-decoration: underline;
+}
+
+.nh-rd-links svg {
+    flex: 0 0 auto;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Table of contents list */
+.nh-rd-toc-list {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style: decimal;
+}
+
+.nh-rd-toc-list li { margin: 0.25rem 0; }
+
+.nh-rd-subheading {
+    list-style: lower-alpha;
+    margin-left: 0.5rem;
+}
+
+/* Active TOC entry (set by the footer script on hashchange) */
+.nh-rd-links a[aria-current="location"] {
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+/* Keep drawers from being squeezed inside narrow containers */
+@media (max-width: 1023px) {
+    .nh-rd-sidebar { font-size: 1rem; }
+    .nh-rd-drawer { margin-bottom: 0.75rem; }
+}

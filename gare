@@ -26,7 +26,7 @@ if ( ! function_exists( 'nh_rd06_enabled' ) ) {
         return $classes;
     } );
 
-    // Replace the theme's sidebar on these articles with the new left drawers.
+    // Replace the theme's sidebar on these articles with the new right drawers.
     add_filter( 'generate_sidebar_layout', function ( $layout ) {
         return nh_rd06_enabled() ? 'no-sidebar' : $layout;
     }, 99 );
@@ -42,11 +42,43 @@ if ( ! function_exists( 'nh_rd06_enabled' ) ) {
             . ( isset( $paths[ $name ] ) ? $paths[ $name ] : '' ) . '</svg>';
     }
 
+    /* v1.2: render the aside AFTER the content so it sits on the right in the
+       DOM as well as visually (no reliance on CSS `order`, which page-builder
+       or GeneratePress rules can override).
+
+       How it works:
+        1. nh_rd06_buffer_start() (priority 998) opens an output buffer just
+           after GP's entry header/featured image.
+        2. nh_rd06_open() (priority 999) builds the sidebar markup into a
+           string instead of echoing it, then emits only the layout wrapper's
+           opening <div>.
+        3. GP echoes the whole entry content into our buffer.
+        4. nh_rd06_layout_close() flushes the buffer and re-emits:
+           content first, sidebar second (= right column), then closes the div. */
+    function nh_rd06_layout_close() {
+        if ( empty( $GLOBALS['nh_rd06_buffering'] ) ) { return; }
+        $buffer = ob_get_clean();
+        $GLOBALS['nh_rd06_buffering'] = false;
+
+        $sidebar = '';
+        if ( ! empty( $GLOBALS['nh_rd06_open'] ) && get_the_ID() === get_queried_object_id() ) {
+            $sidebar = $GLOBALS['nh_rd06_aside_pending']; // full <aside>…</aside>
+            unset( $GLOBALS['nh_rd06_aside_pending'] );
+            $GLOBALS['nh_rd06_open'] = false;
+        }
+
+        // Content first, sidebar last (right side), then close the layout div.
+        echo $buffer, $sidebar, '</div><!-- .nh-rd-layout -->';
+    }
+    add_action( 'generate_end_of_contents', 'nh_rd06_layout_close', 999 );
+
     function nh_rd06_open() {
         if ( ! nh_rd06_enabled() || ! in_the_loop() || ! is_main_query()
             || get_the_ID() !== get_queried_object_id() || ! empty( $GLOBALS['nh_rd06_open'] ) ) {
             return;
         }
+        // Only render when our output buffer is active (we reorder the markup).
+        if ( empty( $GLOBALS['nh_rd06_buffering'] ) ) { return; }
         $GLOBALS['nh_rd06_open'] = true;
         $GLOBALS['nh_rd06_rendered'] = true;
         $current_slug = get_post_field( 'post_name', get_queried_object_id() );
@@ -56,7 +88,10 @@ if ( ! function_exists( 'nh_rd06_enabled' ) ) {
             array( 'peptide-reconstitution-calculator', 'Calculator', 'calculator' ),
             array( 'peptide-scams-to-avoid', 'Peptide scam alerts', 'shield' ),
         );
-        echo '<div class="nh-rd-layout"><aside class="nh-rd-sidebar" aria-label="Article navigation and research tools">';
+        // Build the sidebar into a string — do NOT echo it here, or it would
+        // open before .entry-content and nest the article inside the aside.
+        ob_start();
+        echo '<aside class="nh-rd-sidebar" aria-label="Article navigation and research tools">';
         // Contents are progressively enhanced. Tools work without JavaScript.
         echo '<details class="nh-rd-drawer nh-rd-toc" hidden><summary>Article contents</summary>';
         echo '<nav class="nh-rd-links" aria-label="Article contents"><ol class="nh-rd-toc-list"></ol></nav></details>';
@@ -80,15 +115,27 @@ if ( ! function_exists( 'nh_rd06_enabled' ) ) {
             echo '<a href="' . esc_url( home_url( '/' . $slug . '/' ) ) . '">' . esc_html( $label ) . '</a>';
         }
         echo '</nav></details></aside>';
+        $GLOBALS['nh_rd06_aside_pending'] = ob_get_clean();
+
+        // Open the flex-row wrapper now; it is closed after the sidebar above.
+        echo '<div class="nh-rd-layout">';
     }
     // GP places this hook after the existing entry header and featured image.
     add_action( 'generate_after_entry_header', 'nh_rd06_open', 999 );
 
-    add_action( 'generate_after_entry_content', function () {
-        if ( ! empty( $GLOBALS['nh_rd06_open'] ) && get_the_ID() === get_queried_object_id() ) {
-            echo '</div><!-- .nh-rd-layout -->';
-            $GLOBALS['nh_rd06_open'] = false;
+    function nh_rd06_buffer_start() {
+        if ( ! nh_rd06_enabled() || ! in_the_loop() || ! is_main_query()
+            || get_the_ID() !== get_queried_object_id() || ob_get_level() > 3 ) {
+            return;
         }
+        $GLOBALS['nh_rd06_buffering'] = true;
+        ob_start();
+    }
+    // Runs BEFORE nh_rd06_open (priority 998) so the buffer is active first.
+    add_action( 'generate_after_entry_header', 'nh_rd06_buffer_start', 998 );
+
+    add_action( 'generate_after_entry_content', function () {
+        // Layout div now closes after the sidebar instead — nothing to do here.
     }, 0 );
 
     add_action( 'wp_footer', function () {
