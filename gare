@@ -1,0 +1,151 @@
+<?php
+/**
+ * GeneratePress child theme functions and definitions.
+ *
+ * Add your custom PHP in this file.
+ * Only edit this file if you have direct access to it on your server (to fix errors if they happen).
+ */
+
+
+
+
+
+/* NOOTROHOLIC — CONCEPT 06 RESEARCH DRAWERS v1.0
+ * Append inside your existing child-theme functions.php PHP block.
+ * Do not replace your existing functions.php or add another <?php tag.
+ */
+if ( ! function_exists( 'nh_rd06_enabled' ) ) {
+    function nh_rd06_enabled() {
+        return ! is_admin() && ! is_feed() && ! is_front_page()
+            && ! post_password_required()
+            && ( is_singular( 'post' ) || is_page( 'best-peptide-vendors' ) );
+    }
+
+    add_filter( 'body_class', function ( $classes ) {
+        if ( nh_rd06_enabled() ) { $classes[] = 'nh-rd-enabled'; }
+        return $classes;
+    } );
+
+    // Replace the theme's sidebar on these articles with the new left drawers.
+    add_filter( 'generate_sidebar_layout', function ( $layout ) {
+        return nh_rd06_enabled() ? 'no-sidebar' : $layout;
+    }, 99 );
+
+    function nh_rd06_icon( $name ) {
+        $paths = array(
+            'finder' => '<circle cx="10.5" cy="10.5" r="5.5"/><path d="m15 15 5 5M8 10.5h5m-2.5-2.5v5"/>',
+            'vendors' => '<path d="M9 3h6m-5 0v6l-5.5 9a2 2 0 0 0 1.7 3h11.6a2 2 0 0 0 1.7-3L14 9V3M7.5 15h9"/>',
+            'calculator' => '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M8 6h8M8 10h1m6 0h1M8 14h1m6 0h1M8 18h1m6 0h1"/>',
+            'shield' => '<path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="M12 8v5m0 3h.01"/>',
+        );
+        return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false">'
+            . ( isset( $paths[ $name ] ) ? $paths[ $name ] : '' ) . '</svg>';
+    }
+
+    function nh_rd06_open() {
+        if ( ! nh_rd06_enabled() || ! in_the_loop() || ! is_main_query()
+            || get_the_ID() !== get_queried_object_id() || ! empty( $GLOBALS['nh_rd06_open'] ) ) {
+            return;
+        }
+        $GLOBALS['nh_rd06_open'] = true;
+        $GLOBALS['nh_rd06_rendered'] = true;
+        $current_slug = get_post_field( 'post_name', get_queried_object_id() );
+        $tools = array(
+            array( 'peptide-finder', 'Peptide finder', 'finder' ),
+            array( 'best-peptide-vendors', 'Best vendors', 'vendors' ),
+            array( 'peptide-reconstitution-calculator', 'Calculator', 'calculator' ),
+            array( 'peptide-scams-to-avoid', 'Peptide scam alerts', 'shield' ),
+        );
+        echo '<div class="nh-rd-layout"><aside class="nh-rd-sidebar" aria-label="Article navigation and research tools">';
+        // Contents are progressively enhanced. Tools work without JavaScript.
+        echo '<details class="nh-rd-drawer nh-rd-toc" hidden><summary>Article contents</summary>';
+        echo '<nav class="nh-rd-links" aria-label="Article contents"><ol class="nh-rd-toc-list"></ol></nav></details>';
+        echo '<details class="nh-rd-drawer" open><summary>Research tools</summary><nav class="nh-rd-links" aria-label="Research tools">';
+        foreach ( $tools as $tool ) {
+            // Server-side omission, including query-string/trailing-slash variants.
+            if ( 'best-peptide-vendors' === $tool[0] && 'best-peptide-vendors' === $current_slug ) {
+                continue;
+            }
+            echo '<a href="' . esc_url( home_url( '/' . $tool[0] . '/' ) ) . '">'
+                . nh_rd06_icon( $tool[2] ) . '<span>' . esc_html( $tool[1] ) . '</span></a>';
+        }
+        echo '</nav></details>';
+        echo '<details class="nh-rd-drawer"><summary>Related guides</summary><nav class="nh-rd-links" aria-label="Related research guides">';
+        $guides = array(
+            'peptide-vendor-review-methodology' => 'How we review vendors',
+            'list-of-peptides' => 'Peptide reference guide',
+        );
+        foreach ( $guides as $slug => $label ) {
+            if ( $slug === $current_slug ) { continue; }
+            echo '<a href="' . esc_url( home_url( '/' . $slug . '/' ) ) . '">' . esc_html( $label ) . '</a>';
+        }
+        echo '</nav></details></aside>';
+    }
+    // GP places this hook after the existing entry header and featured image.
+    add_action( 'generate_after_entry_header', 'nh_rd06_open', 999 );
+
+    add_action( 'generate_after_entry_content', function () {
+        if ( ! empty( $GLOBALS['nh_rd06_open'] ) && get_the_ID() === get_queried_object_id() ) {
+            echo '</div><!-- .nh-rd-layout -->';
+            $GLOBALS['nh_rd06_open'] = false;
+        }
+    }, 0 );
+
+    add_action( 'wp_footer', function () {
+        if ( empty( $GLOBALS['nh_rd06_rendered'] ) ) { return; }
+        ?>
+        <script id="nh-rd06-script">
+        (() => {
+            'use strict';
+            function init() {
+                const layout = document.querySelector('.nh-rd-layout');
+                if (!layout || layout.dataset.nhReady) return;
+                const content = layout.querySelector(':scope > .entry-content');
+                const drawer = layout.querySelector('.nh-rd-toc');
+                const list = drawer && drawer.querySelector('.nh-rd-toc-list');
+                if (!content || !list) return;
+                layout.dataset.nhReady = '1';
+                if (window.matchMedia('(max-width: 1023px)').matches) {
+                    layout.querySelectorAll('.nh-rd-drawer').forEach(item => { item.open = false; });
+                }
+                const excluded = 'nav,aside,template,[hidden],[aria-hidden="true"],.ez-toc-container,#ez-toc-container,.lwptoc,.rank-math-toc-block,.wp-block-rank-math-toc-block,[data-nh-rd-toc-exclude]';
+                const headings = Array.from(content.querySelectorAll('h2,h3')).filter(h => h.textContent.trim() && !h.closest(excluded));
+                if (!headings.length) return;
+                const fragment = document.createDocumentFragment();
+                const links = [];
+                headings.forEach((heading, index) => {
+                    if (!heading.id) {
+                        const base = 'nh-section-' + (index + 1);
+                        let id = base;
+                        let suffix = 1;
+                        while (document.getElementById(id)) id = base + '-' + suffix++;
+                        heading.id = id;
+                    }
+                    const li = document.createElement('li');
+                    if (heading.tagName === 'H3') li.className = 'nh-rd-subheading';
+                    const link = document.createElement('a');
+                    link.href = '#' + encodeURIComponent(heading.id);
+                    link.textContent = heading.textContent.trim();
+                    li.appendChild(link);
+                    fragment.appendChild(li);
+                    links.push(link);
+                });
+                list.appendChild(fragment);
+                drawer.hidden = false;
+                function markCurrent() {
+                    links.forEach(link => {
+                        if (link.hash === window.location.hash && window.location.hash) link.setAttribute('aria-current', 'location');
+                        else link.removeAttribute('aria-current');
+                    });
+                }
+                window.addEventListener('hashchange', markCurrent);
+                markCurrent();
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+            else init();
+        })();
+        </script>
+        <?php
+    }, 30 );
+}
+
